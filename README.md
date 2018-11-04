@@ -10,17 +10,17 @@
 - cross-track error: cte
 - psi error: epsi
 
-![state](docs/state.png)
+![state](pngs/state.png)
 
 ### Actuators:
  - acceleration: a
  - steering angle: delta
 
- ![state](docs/actuators.png)
+ ![state](pngs/actuators.png)
 
 ### The update equations is shown below:
 
-![equations](docs/eqns.png)
+![equations](pngs/eqns.png)
 
 ## The chosen N (timestep length) and dt
 - N determines the number of variables optimized by the MPC: If it is too large. such as 100, the simulation would be slower.
