@@ -20,7 +20,11 @@ using CppAD::AD;
 const double Lf = 2.67;
 
 size_t N = 10;
-double dt = 0.1;
+double dt_origin = 0.1;
+
+double latency = 0.1/N;  // 100ms latency
+double dt = dt_origin + latency;
+
 double ref_v = 80;
 
 size_t x_start = 0;
@@ -60,6 +64,8 @@ class FG_eval {
     for (size_t t = 0; t < N - 1; t++) {
       fg[0] += 50*CppAD::pow(vars[delta_start + t], 2);
       fg[0] += 50*CppAD::pow(vars[a_start + t], 2);
+
+      //With it, the vehicle performs better around the corner
       fg[0] += 500*CppAD::pow(vars[delta_start + t] * vars[v_start+t], 2);
     }
 
