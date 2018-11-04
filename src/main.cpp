@@ -163,7 +163,7 @@ int main() {
 
           // compute the optimal trajectory
           auto sol = mpc.Solve(state, coeffs);
-          steer_value = sol[0];
+           steer_value = sol[0];
           throttle_value = sol[1];
 
           // double steer_value = sol.Delta.at(latency_ind);

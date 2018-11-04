@@ -48,35 +48,39 @@ class FG_eval {
     // `fg` a vector of the cost constraints, `vars` is a vector of variable values (state & actuators)
     // NOTE: You'll probably go back and forth between this function and
     // the Solver function below.
+
+   // The cost is stored is the first element of `fg`.
+   // Any additions to the cost should be added to `fg[0]`.
    fg[0] = 0;
 
    // The part of the cost based on the reference state.
-    for (int t = 0; t < N; t++) {
-      fg[0] += CppAD::pow(vars[cte_start + t], 2);
-      fg[0] += CppAD::pow(vars[epsi_start + t], 2);
-      fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2);
+    for (int i = 0; i < N; i++) {
+      fg[0] += 3000*CppAD::pow(vars[cte_start + i], 2);
+      fg[0] += 3000*CppAD::pow(vars[epsi_start + i], 2);
+      fg[0] += CppAD::pow(vars[v_start + i] - ref_v, 2);
     }
 
     // Minimize the use of actuators.
-    for (int t = 0; t < N - 1; t++) {
-      fg[0] += CppAD::pow(vars[delta_start + t], 2);
-      fg[0] += CppAD::pow(vars[a_start + t], 2);
+    for (int i = 0; i < N - 1; i++) {
+      fg[0] += 5*CppAD::pow(vars[delta_start + i], 2);
+      fg[0] += 5*CppAD::pow(vars[a_start + i], 2);
+      fg[0] += 700*CppAD::pow(vars[delta_start + i] * vars[v_start+i], 2);
     }
 
     // Minimize the value gap between sequential actuations.
-    for (int t = 0; t < N - 2; t++) {
-      fg[0] += CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2);
-      fg[0] += CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2);
+    for (int i = 0; i < N - 2; i++) {
+      fg[0] += 200*CppAD::pow(vars[delta_start + i + 1] - vars[delta_start + i], 2);
+      fg[0] += 10*CppAD::pow(vars[a_start + i + 1] - vars[a_start + i], 2);
     }
 
-    // initialization & constraints
+    // initialization & constraints, since fg[0] is for the cost value
     fg[1 + x_start] = vars[x_start];
     fg[1 + y_start] = vars[y_start];
     fg[1 + psi_start] = vars[psi_start];
     fg[1 + v_start] = vars[v_start];
     fg[1 + cte_start] = vars[cte_start];
     fg[1 + epsi_start] = vars[epsi_start];
-
+  
     for (int t = 1; t < N; t++) {
       // The state at time t+1 .
       AD<double> x1 = vars[x_start + t];
@@ -98,18 +102,26 @@ class FG_eval {
       AD<double> delta0 = vars[delta_start + t - 1];
       AD<double> a0 = vars[a_start + t - 1];
 
-      AD<double> f0 = coeffs[0] + coeffs[1] * x0;
-      AD<double> psides0 = CppAD::atan(coeffs[1]);
+      if (t > 1) {   // use previous actuations (to account for latency)
+        a0 = vars[a_start + t - 2];
+        delta0 = vars[delta_start + t - 2];
+      }
 
-      // Here's `x` to get you started.
+      // AD<double> f0 = coeffs[0] + coeffs[1] * x0;
+      // AD<double> psides0 = CppAD::atan(coeffs[1]);
+
+      AD<double> f0 = coeffs[0] + coeffs[1] * x0 + coeffs[2] * CppAD::pow(x0, 2) + coeffs[3] * CppAD::pow(x0, 3);
+      AD<double> psides0 = CppAD::atan(coeffs[1] + 2 * coeffs[2] * x0 + 3 * coeffs[3] * CppAD::pow(x0, 2));
+
+      // // Here's `x` to get you started.
       fg[1 + x_start + t] = x1 - (x0 + v0 * CppAD::cos(psi0) * dt);
       fg[1 + y_start + t] = y1 - (y0 + v0 * CppAD::sin(psi0) * dt);
-      fg[1 + psi_start + t] = psi1 - (psi0 + v0 * delta0 / Lf * dt);
+      fg[1 + psi_start + t] = psi1 - (psi0 - v0 * delta0 / Lf * dt);
       fg[1 + v_start + t] = v1 - (v0 + a0 * dt);
       fg[1 + cte_start + t] =
           cte1 - ((f0 - y0) + (v0 * CppAD::sin(epsi0) * dt));
       fg[1 + epsi_start + t] =
-          epsi1 - ((psi0 - psides0) + v0 * delta0 / Lf * dt);
+          epsi1 - ((psi0 - psides0) - v0 * delta0 / Lf * dt);
     }
   }
 };
