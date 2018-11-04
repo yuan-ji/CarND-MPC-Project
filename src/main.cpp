@@ -71,11 +71,11 @@ Eigen::VectorXd polyfit(Eigen::VectorXd xvals, Eigen::VectorXd yvals,
 Eigen::MatrixXd transformGlobalToLocal(double x, double y, double psi, const vector<double> & ptsx, const vector<double> & ptsy) {
 
     assert(ptsx.size() == ptsy.size());
-    unsigned len = ptsx.size();
+    unsigned int len = ptsx.size();
 
     auto waypoints = Eigen::MatrixXd(2,len);
 
-    for (auto i=0; i<len ; ++i){
+    for (unsigned int i=0; i<len ; ++i){
       waypoints(0,i) =   cos(psi) * (ptsx[i] - x) + sin(psi) * (ptsy[i] - y);
       waypoints(1,i) =  -sin(psi) * (ptsx[i] - x) + cos(psi) * (ptsy[i] - y);
     }
@@ -119,33 +119,13 @@ int main() {
           *
           */
 
-          vector<double> waypoints_x;
-          vector<double> waypoints_y;
+          Eigen::MatrixXd waypoints = transformGlobalToLocal(px, py, psi, ptsx, ptsy);
+          Eigen::VectorXd Ptsx = waypoints.row(0);
+          Eigen::VectorXd Ptsy = waypoints.row(1);
 
-          // transform waypoints to be from car's perspective
-          // this means we can consider px = 0, py = 0, and psi = 0
-          // greatly simplifying future calculations
-          for (int i = 0; i < ptsx.size(); i++) {
-            double dx = ptsx[i] - px;
-            double dy = ptsy[i] - py;
-            waypoints_x.push_back(dx * cos(-psi) - dy * sin(-psi));
-            waypoints_y.push_back(dx * sin(-psi) + dy * cos(-psi));
-          }
-
-          double* ptrx = &waypoints_x[0];
-          double* ptry = &waypoints_y[0];
-          Eigen::Map<Eigen::VectorXd> waypoints_x_eig(ptrx, 6);
-          Eigen::Map<Eigen::VectorXd> waypoints_y_eig(ptry, 6);
-
-
-
-          // Eigen::MatrixXd waypoints = transformGlobalToLocal(px, py, psi, ptsx, ptsy);
-          // Eigen::VectorXd Ptsx = waypoints.row(0);
-          // Eigen::VectorXd Ptsy = waypoints.row(1);
-
-          // // Polyfit
-          // auto coeffs = polyfit(Ptsx, Ptsy, 3);
-          auto coeffs = polyfit(waypoints_x_eig, waypoints_y_eig, 3);
+          // Polyfit
+          auto coeffs = polyfit(Ptsx, Ptsy, 3);
+          // auto coeffs = polyfit(waypoints_x_eig, waypoints_y_eig, 3);
 
           //Cal the cte
           auto cte = polyeval(coeffs, 0);  // px = 0, py = 0
@@ -153,23 +133,14 @@ int main() {
           // Cal the oriention error
           auto epsi = -atan(coeffs[1]);
 
-
-          double steer_value = j[1]["steering_angle"];
-          double throttle_value = j[1]["throttle"];
-
           // state in vehicle coordinates: x,y and orientation are always zero
           Eigen::VectorXd state(6);
           state << 0, 0, 0, v, cte, epsi;
 
           // compute the optimal trajectory
           auto sol = mpc.Solve(state, coeffs);
-           steer_value = sol[0];
-          throttle_value = sol[1];
-
-          // double steer_value = sol.Delta.at(latency_ind);
-          // double throttle_value= sol.A.at(latency_ind);
-          // mpc.delta_prev = steer_value;
-          // mpc.a_prev = throttle_value;
+          double steer_value = sol[0];
+          double throttle_value = sol[1];
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
@@ -186,8 +157,8 @@ int main() {
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Green line
 
-          for (int i = 2; i < sol.size(); i ++) {
-            if (i%2 == 0) {
+          for (unsigned int i = 2; i < sol.size(); i ++) {
+            if ( i %2 == 0) {
               mpc_x_vals.push_back(sol[i]);
             }
             else {
